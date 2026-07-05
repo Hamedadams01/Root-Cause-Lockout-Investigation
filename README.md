@@ -1,32 +1,94 @@
 # Root-Cause-Lockout-Investigation
 
-# Overview
-This project goes beyond simply unlocking a locked account — it walks through using Windows Event Viewer to identify the root cause of a lockout before resolving it, giving a fuller picture of why an account locked out rather than just fixing the symptom.
-# Objectives
 
-- Confirm the reported lockout symptom on the client side
-- Use Event Viewer to investigate the root cause of the lockout
-- Identify the specific account and source of the failed login attempts
-- Unlock the account using PowerShell
-- Verify the account status and confirm the user can log in successfully
+## Overview
 
-# Step-by-Step
+In this lab, I investigated the root cause of a repeated account lockout for user Emily Garcia on a Windows Server 2019 domain controller (Houtech). Rather than just unlocking the account, this involved digging into the Security event log in Event Viewer to find the specific lockout event, identifying the source computer that triggered it, unlocking the account via PowerShell, confirming the fix programmatically, and verifying the user could sign in successfully afterward.
 
-- I signed in as the affected user (Emily Garcia) on the Windows 11 client and confirmed the exact error: "The referenced account is currently locked out and may not be logged on to."
-- I opened Server Manager on the Houtech server and went to Tools > Event Viewer to begin investigating the cause rather than just unlocking the account outright.
-- I expanded Windows Logs and selected Security, which showed a large volume of events (23,101) to sift through.
-- I opened Filter Current Log and entered Event ID 4740 (the specific event ID for account lockouts) to narrow down the results.
-- I reviewed the filtered results, which returned 7 matching lockout events under the "User Account Management" task category.
-- I opened the first Event 4740 entry and confirmed the description: "A user account was locked out," with the Logon ID and computer details listed under Subject.
-- I scrolled to the Details tab of the event and identified the account that was locked out: HOUTECH300\egarcia, with the Caller Computer Name listed as WINDOWS11 — confirming the lockout originated from Emily's own workstation, likely due to repeated failed login attempts or a cached credential issue.
-- I opened PowerShell as Administrator on the server and ran Unlock-ADAccount -Identity egarcia to unlock the account directly from the command line.
-- I ran Get-ADUser egarcia -Properties LockedOut | Format-List to verify the account status, confirming LockedOut: False and reviewing her full AD attributes (Distinguished Name, SID, UserPrincipalName, etc.).
-- I went back to the Windows 11 client and signed in as Emily Garcia using her existing password to confirm the fix worked from the end-user side.
-- I confirmed she was fully signed in, with the Start menu showing her account (egarcia@Houtech.local) and a normal desktop session — closing out the investigation.
+## Objectives
 
-# Conclusion
 
-- The lockout was diagnosed using Event Viewer rather than resolved blindly, identifying Event ID 4740 as the specific lockout trigger
-- The source computer (WINDOWS11) was identified as the origin of the failed login attempts, pointing to a likely cause on the user's own machine
-- The account was unlocked via PowerShell (Unlock-ADAccount) and verified programmatically before closing the ticket
-- This root-cause approach demonstrates a more thorough troubleshooting methodology than a simple unlock, useful for identifying recurring lockout patterns
+- Reproduce and confirm the reported lockout error on the client
+- Open Event Viewer on the domain controller and navigate to the Security log
+- Filter the Security log for Event ID 4740 (account lockout events)
+- Identify the specific lockout event and review its details
+- Determine which account was locked out and which computer triggered the lockout
+- Unlock the account using PowerShell rather than the GUI
+- Confirm programmatically that the account's LockedOut status was cleared
+- Verify the user could sign in successfully after the fix
+
+
+# Descriptions
+
+1 — Confirming the reported error
+
+On the Windows 11 client, the sign-in screen for Emily Garcia displayed "The referenced account is currently locked out and may not be logged on to," confirming the reported lockout before beginning any investigation on the server side.
+
+![image alt]()
+
+2 — Opening Event Viewer
+
+On the Houtech server, opened the Tools menu in Server Manager and selected Event Viewer, to begin investigating the Security log for the root cause of the lockout rather than just clearing it.
+
+![image alt]()
+
+3 — Event Viewer overview screen
+
+Event Viewer opened to the Overview and Summary screen for the local computer, showing the Custom Views, Windows Logs, Applications and Services Logs, and Subscriptions nodes available to drill into.
+
+![image alt]()
+
+4 — Reviewing the Security log
+
+Selected the Security log under Windows Logs, showing over 23,000 events including numerous Logon/Logoff events (Event ID 4634), far too many to scan manually without filtering.
+
+![image alt]()
+
+5 — Filtering for lockout events
+
+Opened Filter Current Log and entered Event ID 4740 (the event ID specifically logged for account lockouts) to narrow down the massive Security log to only the relevant lockout events.
+
+![image alt]()
+
+6 — Filtered results showing lockout events
+
+The filtered Security log now showed only 7 events, all Event ID 4740 under the User Account Management task category, isolating the exact account lockout occurrences.
+
+![image alt]()
+
+7 — Reviewing the lockout event details
+
+Opened the Event Properties for the most recent Event 4740 (Microsoft Windows security auditing), showing "A user account was locked out" along with Subject details including Security ID: SYSTEM and Account Domain: HOUTECH300.
+
+![image alt]()
+
+8 — Identifying the locked-out account and source
+
+Scrolled further into the same event details and found "Account That Was Locked Out: HOUTECH300\egarcia" along with "Caller Computer Name: WINDOWS11," identifying both the affected account and the specific machine that triggered the lockout.
+
+![image alt]()
+
+9 — Unlocking the account via PowerShell
+
+Opened an elevated PowerShell prompt and ran Unlock-ADAccount -Identity egarcia, unlocking Emily Garcia's account directly from the command line instead of using the Active Directory Users and Computers GUI.
+
+![image alt]()
+
+10 — Confirming the unlock programmatically
+
+Ran Get-ADUser egarcia -Properties LockedOut | Format-List, which returned LockedOut : False along with the account's full distinguished name and other attributes, confirming the lockout flag had been successfully cleared.
+
+![image alt]()
+
+11 — Testing sign-in on the client
+
+Back on the Windows 11 client, signed in as Emily Garcia with her password to confirm from the end-user side that the account was no longer locked out.
+
+![image alt]()
+
+12 — Confirming successful sign-in
+
+Confirmed Emily Garcia was fully signed in, with the Start menu showing her account (egarcia@Houtech.local) and a normal desktop session, verifying the account was fully accessible again after the fix.
+
+![image alt]()
+
